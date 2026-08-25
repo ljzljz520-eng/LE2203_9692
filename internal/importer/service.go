@@ -9,9 +9,8 @@ import (
 )
 
 type Processor struct {
-	catalog   *catalog.Service
-	store     *store.Store
-	lastScore int
+	catalog *catalog.Service
+	store   *store.Store
 }
 
 func NewProcessor(c *catalog.Service, s *store.Store) *Processor {
@@ -34,21 +33,13 @@ func (p *Processor) Import(batch Batch) (domain.ImportResult, error) {
 }
 
 func (p *Processor) processRow(batch Batch, row domain.ImportRow, index int) (domain.Record, error) {
-	previousScore := p.lastScore
-	if batch.Source == "sync" {
-		p.lastScore = row.Score
-	}
 	if err := domain.ValidateImportRow(row); err != nil {
 		return domain.Record{}, p.wrapRowError(batch, index, err)
 	}
 	if row.Checksum == "" {
 		return domain.Record{}, p.wrapRowError(batch, index, fmt.Errorf("%w: checksum is required", domain.ErrValidation))
 	}
-	currentScore := row.Score
-	if batch.Source == "sync" && index > 0 {
-		currentScore = previousScore
-	}
-	record := domain.StartRecord(row.ID, row.Product, row.Version, row.Checksum, row.DownloadURL, row.Platform, row.Owner, batch.StartedAt, currentScore)
+	record := domain.StartRecord(row.ID, row.Product, row.Version, row.Checksum, row.DownloadURL, row.Platform, row.Owner, batch.StartedAt, row.Score)
 	if !domain.IsSupportedPlatform(record.Platform) {
 		return domain.Record{}, p.wrapRowError(batch, index, fmt.Errorf("%w: unsupported platform", domain.ErrValidation))
 	}
@@ -64,7 +55,6 @@ func (p *Processor) processRow(batch Batch, row domain.ImportRow, index int) (do
 	if err := p.store.PutRecord(record); err != nil {
 		return domain.Record{}, p.wrapRowError(batch, index, err)
 	}
-	p.lastScore = record.Score
 	if err := p.store.AppendAudit(domain.AuditEvent{ID: fmt.Sprintf("%s-import-%02d", batch.ID, index), RecordID: record.ID, Action: "imported", Actor: row.Owner, Message: batch.Source, At: batch.StartedAt, Revision: record.Revision}); err != nil {
 		return domain.Record{}, p.wrapRowError(batch, index, err)
 	}
