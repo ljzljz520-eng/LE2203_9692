@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "metrics": {
+    "production_loc": 2314,
+    "production_files": 32,
+    "production_packages": 8,
+    "test_files": 9,
+    "production_functions": 153,
+    "decision_points": 314
+  },
+  "persistence": {
+    "module": "go.etcd.io/bbolt",
+    "entities": [
+      "Record",
+      "AuditEvent",
+      "Workflow",
+      "Attachment"
+    ],
+    "reopen_test": "TestPersistenceSurvivesReopen"
+  },
+  "workflows": [
+    {
+      "steps": [
+        "register a firmware verification record",
+        "submit the record for review",
+        "approve the record and write an audit event",
+        "archive the approved record and build a report"
+      ],
+      "test": "TestWorkflowCreateReviewArchive"
+    },
+    {
+      "steps": [
+        "search visible records by product and platform",
+        "select a record and check its revision",
+        "apply a deterministic score and checksum change",
+        "review and publish the approved version"
+      ],
+      "test": "TestWorkflowSearchUpdatePublish"
+    },
+    {
+      "steps": [
+        "parse a deterministic CSV import batch",
+        "validate row identity and score",
+        "persist records and import audit events",
+        "summarize imported scores and report status"
+      ],
+      "test": "TestWorkflowImportReport"
+    }
+  ]
+}
